@@ -4,3 +4,15 @@
 [submodule "src/moveit_tutorials"]
 	path = src/moveit_tutorials
 	url = https://github.com/moveit/moveit_tutorials
+[submodule "src/vgn"]
+	path = src/vgn
+	url = https://github.com/ethz-asl/vgn
+[submodule "src/ros_kortex"]
+	path = src/ros_kortex
+	url = https://github.com/Kinovarobotics/ros_kortex
+[submodule "src/panda_moveit_config"]
+	path = src/panda_moveit_config
+	url = https://github.com/moveit/panda_moveit_config
+[submodule "src/realsense-ros"]
+	path = src/realsense-ros
+	url = https://github.com/IntelRealSense/realsense-ros
