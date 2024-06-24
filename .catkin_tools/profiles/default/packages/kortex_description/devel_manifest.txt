@@ -1,0 +1,5 @@
+ros_kortex/kortex_description
+/home/rover/ros_ws/devel/.private/kortex_description/cmake.lock /home/rover/ros_ws/devel/./cmake.lock
+/home/rover/ros_ws/devel/.private/kortex_description/lib/pkgconfig/kortex_description.pc /home/rover/ros_ws/devel/lib/pkgconfig/kortex_description.pc
+/home/rover/ros_ws/devel/.private/kortex_description/share/kortex_description/cmake/kortex_descriptionConfig-version.cmake /home/rover/ros_ws/devel/share/kortex_description/cmake/kortex_descriptionConfig-version.cmake
+/home/rover/ros_ws/devel/.private/kortex_description/share/kortex_description/cmake/kortex_descriptionConfig.cmake /home/rover/ros_ws/devel/share/kortex_description/cmake/kortex_descriptionConfig.cmake

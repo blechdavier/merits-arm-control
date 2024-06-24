@@ -1,0 +1,4 @@
+logs/*
+devel/*
+build/*
+CATKIN_IGNORE
