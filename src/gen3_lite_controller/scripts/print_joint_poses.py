@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 # Software License Agreement (BSD License)
 #
@@ -40,15 +40,15 @@
 # To run this node in a given namespace with rosrun (for example 'my_gen3'), start a Kortex driver and then run : 
 # rosrun kortex_examples example_move_it_trajectories.py __ns:=my_gen3
 
-import random
 import sys
+import termios
+import tty
 import rospy
 import moveit_commander
 import moveit_msgs.msg
-from math import pi
-import tf2_ros
-import tf2_geometry_msgs
 import geometry_msgs.msg
+from math import pi
+from select import select
 
 class ExampleMoveItTrajectories(object):
   """ExampleMoveItTrajectories"""
@@ -58,6 +58,7 @@ class ExampleMoveItTrajectories(object):
     super(ExampleMoveItTrajectories, self).__init__()
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('example_move_it_trajectories')
+    rospy.loginfo("rospy.get_namespace(): "+rospy.get_namespace())
 
     try:
       self.is_gripper_present = rospy.get_param(rospy.get_namespace() + "is_gripper_present", False)
@@ -66,21 +67,12 @@ class ExampleMoveItTrajectories(object):
         self.gripper_joint_name = gripper_joint_names[0]
       else:
         self.gripper_joint_name = ""
-      self.degrees_of_freedom = rospy.get_param(rospy.get_namespace() + "degrees_of_freedom", 7)
+      self.degrees_of_freedom = 6
 
       # Create the MoveItInterface necessary objects
       arm_group_name = "arm"
       self.robot = moveit_commander.RobotCommander("robot_description")
       self.scene = moveit_commander.PlanningSceneInterface(ns=rospy.get_namespace())
-      pose = geometry_msgs.msg.PoseStamped()
-      pose.header.frame_id = "base_link"
-      pose.pose.position.z = -0.03
-      self.scene.add_plane("table", pose, normal=(0, 0, 1))
-      pose.pose.position.x = -0.4
-      self.scene.add_box("shelf", pose, size=(0.1, 2, 2))
-      pose.pose.position.x = 0
-      pose.pose.position.y = 0.5
-      self.scene.add_box("table_lip", pose, size=(1, 0.05, 0.2))
       self.arm_group = moveit_commander.MoveGroupCommander(arm_group_name, ns=rospy.get_namespace())
       self.display_trajectory_publisher = rospy.Publisher(rospy.get_namespace() + 'move_group/display_planned_path',
                                                     moveit_msgs.msg.DisplayTrajectory,
@@ -92,7 +84,7 @@ class ExampleMoveItTrajectories(object):
 
       rospy.loginfo("Initializing node in namespace " + rospy.get_namespace())
     except Exception as e:
-      print (e)
+      print ("Initialization error: "+str(e))
       self.is_init_success = False
     else:
       self.is_init_success = True
@@ -109,6 +101,11 @@ class ExampleMoveItTrajectories(object):
     (success_flag, trajectory_message, planning_time, error_code) = arm_group.plan()
     # Execute the trajectory and block while it's not finished
     return arm_group.execute(trajectory_message, wait=True)
+  
+  def pick(self, name: str):
+    arm_group = self.arm_group
+    rospy.loginfo("picking item "+name+".")
+    arm_group.pick()
 
   def reach_joint_angles(self, tolerance):
     arm_group = self.arm_group
@@ -154,8 +151,8 @@ class ExampleMoveItTrajectories(object):
 
     # Get the current pose and display it
     pose = arm_group.get_current_pose()
-    rospy.loginfo("Actual cartesian pose is : ")
-    rospy.loginfo(pose.pose)
+    # rospy.loginfo("Actual cartesian pose is : ")
+    # rospy.loginfo(pose.pose)
 
     return pose.pose
 
@@ -183,78 +180,39 @@ class ExampleMoveItTrajectories(object):
     gripper_joint = self.robot.get_joint(self.gripper_joint_name)
     gripper_max_absolute_pos = gripper_joint.max_bound()
     gripper_min_absolute_pos = gripper_joint.min_bound()
-    rospy.loginfo("Gripper joint name: " + self.gripper_joint_name)
-    rospy.loginfo("Gripper max bound: " + str(gripper_max_absolute_pos))
-    rospy.loginfo("Gripper min bound: " + str(gripper_min_absolute_pos))
     try:
       val = gripper_joint.move(relative_position * (gripper_max_absolute_pos - gripper_min_absolute_pos) + gripper_min_absolute_pos, True)
       return val
-    except Exception as e:
-      rospy.logerr("An error occurred while moving the gripper: " + str(e))
-      return False 
+    except:
+      return False
+  
+  def get_joint_angles(self):
+    return self.arm_group.get_current_joint_values()
+    
+def getKey(settings, timeout):
+  if sys.platform == 'win32':
+      # getwch() returns a string on Windows
+      key = msvcrt.getwch()
+  else:
+      tty.setraw(sys.stdin.fileno())
+      # sys.stdin.read() returns a string on Linux
+      rlist, _, _ = select([sys.stdin], [], [], timeout)
+      if rlist:
+          key = sys.stdin.read(1)
+      else:
+          key = ''
+      termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+  return key
+  
+
+def saveTerminalSettings():
+    if sys.platform == 'win32':
+        return None
+    return termios.tcgetattr(sys.stdin)
 
 def main():
-    example = ExampleMoveItTrajectories()
-    print("Successfully primed gripper." if example.reach_gripper_position(1.0) else "Failure")
-    target_pose = geometry_msgs.msg.Pose()
-    target_pose.position.x = 0.0
-    target_pose.position.y = 0.35
-    target_pose.position.z = 0.3
-    target_pose.orientation.x = 0.0
-    target_pose.orientation.y = 1.0
-    target_pose.orientation.z = 0.0
-    target_pose.orientation.w = 0.0
-    deposit_pose = geometry_msgs.msg.Pose()
-    deposit_pose.position.x = 0.2
-    deposit_pose.position.y = 0.3
-    deposit_pose.position.z = 0.3
-    deposit_pose.orientation.x = 1.0
-    deposit_pose.orientation.y = 0.0
-    deposit_pose.orientation.z = 0.0
-    deposit_pose.orientation.w = 0.0
-    while not rospy.is_shutdown():
-      print("Successfully reached observation point." if example.reach_cartesian_pose(pose=target_pose, tolerance=0.01, constraints=None) else "Failure")
-
-      rospy.sleep(2)
-      
-      grasp_poses: geometry_msgs.msg.PoseArray = rospy.wait_for_message('/grasps/pose', geometry_msgs.msg.PoseArray)
-
-      print("Received poses: " + str(grasp_poses.poses))
-      if len(grasp_poses.poses) == 0:
-        print("No poses received, shutting down...")
-        break
-
-      # find what this pose is in relation to the base_link frame
-      tf_buffer = tf2_ros.Buffer()
-      listener = tf2_ros.TransformListener(tf_buffer)
-      transformed_poses = []
-      for pose in grasp_poses.poses:
-        # FIXME this is dumb but I don't know how to do this properly
-        pose = geometry_msgs.msg.PoseStamped(pose=pose)
-        pose.header.frame_id = grasp_poses.header.frame_id
-        transformed_grasp_pose = None
-        while transformed_grasp_pose is None:
-          try:
-            transform = tf_buffer.lookup_transform('base_link', pose.header.frame_id, rospy.Time(0))
-            transformed_grasp_pose = tf2_geometry_msgs.do_transform_pose(pose, transform)
-          except Exception as e:
-            if not rospy.is_shutdown():
-              rospy.logwarn("Failed to transform pose: "+str(e)+", retrying...")
-            else:
-              return
-        rospy.loginfo("Transformed pose: " + str(transformed_grasp_pose))
-        transformed_poses.append(transformed_grasp_pose.pose)
-      # choose the pose with the highest z
-      transformed_grasp_pose = max(transformed_poses, key=lambda pose: pose.position.z)
-      # transformed_grasp_pose.pose.position.z = 0.05
-      transformed_grasp_pose.orientation = target_pose.orientation
-      print("Successfully reached grasp point." if example.reach_cartesian_pose(pose=transformed_grasp_pose, tolerance=0.01, constraints=None) else "Failure")
-      print("Successfully actuated gripper." if example.reach_gripper_position(0.15) else "Failure")
-      print("Successfully reached deposit point." if example.reach_cartesian_pose(pose=deposit_pose, tolerance=0.01, constraints=None) else "Failure")
-      print("Successfully actuated gripper." if example.reach_gripper_position(0.7) else "Failure")
-
-
-
+  example = ExampleMoveItTrajectories()
+  rospy.loginfo(example.get_joint_angles())
 
 if __name__ == '__main__':
   main()

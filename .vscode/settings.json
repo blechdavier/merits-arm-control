@@ -5,6 +5,7 @@
     ],
     "python.analysis.extraPaths": [
         "/home/rover/ros_ws/devel/lib/python3/dist-packages",
-        "/opt/ros/noetic/lib/python3/dist-packages"
+        "/opt/ros/noetic/lib/python3/dist-packages",
+        "./src/vgn/src"
     ]
 }
