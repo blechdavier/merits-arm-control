@@ -42,6 +42,7 @@ class Gen3LiteCommander(object):
         pose.pose.position.y = 0.5
         self.scene.add_box("table_lip", pose, size=(1, 0.05, 0.2))
         self.arm_group = moveit_commander.move_group.MoveGroupCommander("arm")
+        self.arm_group.set_max_acceleration_scaling_factor(0.5)
         self.gripper_group = moveit_commander.move_group.MoveGroupCommander("gripper")
         self.display_trajectory_publisher = rospy.Publisher('/my_gen3_lite/move_group/display_planned_path',
                                                     moveit_msgs.msg.DisplayTrajectory,
@@ -49,10 +50,6 @@ class Gen3LiteCommander(object):
     
     def _initialize_gripper(self):
         pass
-
-    def home(self):
-        # TODO joint angles
-        self.goto_joints([2.1556243716474253, -0.42662136239971726, 0.9317636326954402, -1.5728107418434325, -1.7804819131189396, 2.1533431078576633])
 
     def goto_joints(self, joints: "list[float]"):
         if len(joints) != 6:
@@ -65,10 +62,17 @@ class Gen3LiteCommander(object):
     
     def goto_pose(self, pose: geometry_msgs.msg.Transform):
         pose_msg = ros_utils.to_pose_msg(pose)
-        self.arm_group.set_pose_target(pose_msg)
-        _, plan, _, _ = self.arm_group.plan()
-        success = self.arm_group.execute(plan, wait=True)
-        return success
+        for i in range(5):
+            self.arm_group.set_pose_target(pose_msg)
+            _, plan, _, _ = self.arm_group.plan()
+            if self.arm_group.execute(plan, wait=True):
+                return
+            else:
+                rospy.logwarn("Failed attempt %d/5" % (i+1))
+                rospy.sleep(0.5)
+        rospy.logerr("Failed to reach pose")
+
+
 
     def move_gripper(self, relative_position: float):
         if relative_position < 0 or relative_position > 1:
@@ -104,15 +108,20 @@ class Gen3LiteGraspController(object):
         self.T_tcp_tool0 = self.T_tool0_tcp.inverse()
         self.finger_depth = rospy.get_param("/vgn_grasp_gen3_lite/finger_depth")
         self.size = 6.0 * self.finger_depth
-        self.scan_joints = rospy.get_param("/vgn_grasp_gen3_lite/scan_joints")
+        self.scan_joints_left = rospy.get_param("/vgn_grasp_gen3_lite/scan_joints_left")
+        self.scan_joints_right = rospy.get_param("/vgn_grasp_gen3_lite/scan_joints_right")
 
         self.setup_panda_control()
-        self.T_base_task = Transform(Rotation.identity(), [-0.3, 0.1, -0.05])
+        self.T_base_task_right = Transform(Rotation.identity(), [-0.3, 0.1, -0.05])
+        self.T_base_task_left = Transform(Rotation.identity(), [-0.3, -0.4, -0.05])
         self.tf_tree = ros_utils.TransformTree()
-        self.tf_tree.broadcast_static(self.T_base_task, "base_link", "task")
+        self.set_side("right")
+        # self.T_task_workspace_center = Transform(Rotation.identity(), [self.size, self.size, 0.0])
+        # self.tf_tree.broadcast_static(self.T_task_workspace_center, "task", "workspace_center")
 
-        self.tsdf_server = TSDFServer()
+
         self.plan_grasps = VGN(Path("/home/rover/ros_ws/src/vgn/data/models/vgn_conv.pth"), rviz=True) #FIXME hard coded path
+        self.tsdf_server = TSDFServer(self.plan_grasps)
 
         rospy.loginfo("Ready to take action")
 
@@ -152,11 +161,20 @@ class Gen3LiteGraspController(object):
         self.robot_error = False
         rospy.loginfo("Recovered from robot error")
 
+    def set_side(self, side: str):
+        if side == "right":
+            self._side = "right"
+            self.T_base_task = self.T_base_task_right
+            self.tf_tree.broadcast_static(self.T_base_task, self.base_frame_id, "task")
+        elif side == "left":
+            self._side = "left"
+            self.T_base_task = self.T_base_task_left
+            self.tf_tree.broadcast_static(self.T_base_task, self.base_frame_id, "task")
+        else:
+            raise ValueError("Side must be 'right' or 'left")
+
     def run(self):
         vis.clear()
-        vis.draw_workspace(self.size)
-        self.commander.home()
-        self.commander.open_gripper()
 
         tsdf, pc = self.acquire_tsdf()
         vis.draw_tsdf(tsdf.get_grid().squeeze(), tsdf.voxel_size)
@@ -176,28 +194,26 @@ class Gen3LiteGraspController(object):
         vis.draw_grasp(grasp, score, self.finger_depth)
         rospy.loginfo("Selected grasp")
 
-        self.commander.home()
-        label = self.execute_grasp(grasp)
-        rospy.loginfo("Grasp execution")
+        self.execute_grasp(grasp)
 
-        if self.robot_error:
-            self.recover_robot()
-            return
-
-        if label:
-            self.drop()
-        self.commander.home()
+        # drop
+        T_task_home = Transform(Rotation.from_euler("x", np.pi), [0.15, 0.15, 0.3])
+        T_base_drop_task = self.T_base_task_left if self._side == "right" else self.T_base_task_right # drop it on the other side.
+        T_base_home = T_base_drop_task * T_task_home
+        self.commander.goto_pose(T_base_home * self.T_tcp_tool0)
+        self.commander.open_gripper()
 
     def acquire_tsdf(self):
-        self.commander.goto_joints(self.scan_joints[0])
 
         self.tsdf_server.reset()
         self.tsdf_server.integrate = True
 
-        for joint_target in self.scan_joints[1:]:
-            if rospy.is_shutdown():
-                break
-            self.commander.goto_joints(joint_target)
+        if self._side == "right":
+            for pose in self.scan_joints_right:
+                self.commander.goto_joints(pose)
+        else:
+            for pose in self.scan_joints_left:
+                self.commander.goto_joints(pose)
 
         self.tsdf_server.integrate = False
         tsdf = self.tsdf_server.low_res_tsdf
@@ -244,7 +260,7 @@ class Gen3LiteGraspController(object):
         # if self.robot_error:
         #     return False
 
-        self.commander.goto_pose(T_base_retreat * self.T_tcp_tool0)
+        # self.commander.goto_pose(T_base_retreat * self.T_tcp_tool0)
 
         # # lift hand
         T_retreat_lift_base = Transform(Rotation.identity(), [0.0, 0.0, 0.1])
@@ -267,7 +283,7 @@ class Gen3LiteGraspController(object):
 
 
 class TSDFServer(object):
-    def __init__(self):
+    def __init__(self, plan_grasps):
         self.cam_frame_id = rospy.get_param("/vgn_grasp_gen3_lite/cam/frame_id")
         self.cam_topic_name = rospy.get_param("/vgn_grasp_gen3_lite/cam/topic_name")
         self.intrinsic = CameraIntrinsic.from_dict(rospy.get_param("/vgn_grasp_gen3_lite/cam/intrinsic"))
@@ -276,13 +292,29 @@ class TSDFServer(object):
         self.cv_bridge = cv_bridge.CvBridge()
         self.tf_tree = ros_utils.TransformTree()
         self.integrate = False
-        rospy.Subscriber(self.cam_topic_name, sensor_msgs.msg.Image, self.sensor_cb)
+        rospy.Subscriber(self.cam_topic_name, sensor_msgs.msg.Image, lambda msg: self.sensor_cb(msg, plan_grasps))
 
     def reset(self):
         self.low_res_tsdf = TSDFVolume(self.size, 40)
         self.high_res_tsdf = TSDFVolume(self.size, 120)
 
-    def sensor_cb(self, msg):
+    def select_grasp(self, grasps, scores): # TODO remove this
+        # select the highest grasp
+        heights = np.empty(len(grasps))
+        for i, grasp in enumerate(grasps):
+            heights[i] = grasp.pose.translation[2]
+        idx = np.argmax(heights)
+        grasp, score = grasps[idx], scores[idx]
+
+        # make sure camera is pointing forward
+        rot = grasp.pose.rotation
+        axis = rot.as_matrix()[:, 0]
+        if axis[0] < 0:
+            grasp.pose.rotation = rot * Rotation.from_euler("z", np.pi)
+
+        return grasp, score
+
+    def sensor_cb(self, msg, plan_grasps):
         if not self.integrate:
             return
         
@@ -296,12 +328,26 @@ class TSDFServer(object):
         self.low_res_tsdf.integrate(img, self.intrinsic, T_cam_task)
         self.high_res_tsdf.integrate(img, self.intrinsic, T_cam_task)
 
+        vis.draw_tsdf(self.low_res_tsdf.get_grid().squeeze(), self.low_res_tsdf.voxel_size)
+        state = State(self.low_res_tsdf, self.high_res_tsdf.get_cloud())
+        grasps, scores, planning_time = plan_grasps(state)
+        rospy.loginfo("Planned grasps in %f seconds", planning_time)
+        vis.draw_grasps(grasps, scores, 0.05)
+        if len(grasps) > 0:
+            grasp, score = self.select_grasp(grasps, scores)
+            rospy.logwarn("Selected grasp with score %f", score)
+            vis.draw_grasp(grasp, score, 0.05)
+
+
 
 def main():
     rospy.init_node("vgn_grasp_gen3_lite")
     controller = Gen3LiteGraspController()
 
     while not rospy.is_shutdown():
+        controller.set_side("right")
+        controller.run()
+        controller.set_side("left")
         controller.run()
 
 

@@ -18,6 +18,7 @@
     <include file="$(find realsense2_camera)/launch/rs_camera.launch">
         <arg name="enable_pointcloud" value="true" />
         <arg name="publish_tf" value="false" />
+        <arg name="json_file_path" value="$(find gen3_lite_controller)/config/HighAccuracyPreset.json" />
     </include>
 
     <!-- Hand-eye calibration -->
