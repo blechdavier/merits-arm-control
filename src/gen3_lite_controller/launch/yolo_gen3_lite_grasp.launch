@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<launch>
+    <!-- Load configuration -->
+    <rosparam command="load" file="$(find gen3_lite_controller)/config/gen3_lite.yaml" />
+
+    <!-- Hand-eye calibration -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="hand_eye_broadcaster" args="-0.055 0.018 0.035 0 -1.57 0 gripper_base_link camera_link" />
+
+    <!-- Transform required by MoveIt -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0 0 0 0 world base_link" />
+
+    <!-- Launch arm control, propagate __ns -->
+    <include file="$(find kortex_driver)/launch/kortex_driver.launch">
+        <arg name="arm" default="gen3_lite"/>
+    </include>
+
+    <!-- Start a joint trajectory controller -->
+    <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="position_joint_trajectory_controller"/> -->
+
+    <!-- Launch camera driver -->
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="enable_pointcloud" value="false" />
+        <arg name="publish_tf" value="true" />
+        <arg name="align_depth" value="true" />
+        <arg name="json_file_path" value="$(find gen3_lite_controller)/config/HighAccuracyPreset.json" />
+    </include>
+
+    <!-- Launch yolov8 node -->
+    <include file="$(find ultralytics_ros)/launch/tracker.launch">
+        <arg name="debug" value="true" />
+        <arg name="input_topic" value="/camera/color/image_raw" />
+    </include>
+
+    <!-- Launch Controller -->
+    <group ns="my_gen3_lite">
+        <node pkg="gen3_lite_controller" type="yolo_vgn_grasp_gen3_lite.py" name="yolo_vgn_grasp_gen3_lite" />
+    </group>
+
+</launch>
