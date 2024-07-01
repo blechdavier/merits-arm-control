@@ -1,9 +1,0 @@
-gen3_lite_controller
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/cmake.lock /home/rover/ros_ws/devel/./cmake.lock
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/lib/python3/dist-packages/gen3_lite_controller/__init__.py /home/rover/ros_ws/devel/lib/python3/dist-packages/gen3_lite_controller/__init__.py
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/lib/pkgconfig/gen3_lite_controller.pc /home/rover/ros_ws/devel/lib/pkgconfig/gen3_lite_controller.pc
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/share/roseus/ros/gen3_lite_controller/manifest.l /home/rover/ros_ws/devel/share/roseus/ros/gen3_lite_controller/manifest.l
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/share/gen3_lite_controller/cmake/gen3_lite_controller-msg-paths.cmake /home/rover/ros_ws/devel/share/gen3_lite_controller/cmake/gen3_lite_controller-msg-paths.cmake
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/share/gen3_lite_controller/cmake/gen3_lite_controllerConfig.cmake /home/rover/ros_ws/devel/share/gen3_lite_controller/cmake/gen3_lite_controllerConfig.cmake
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/share/gen3_lite_controller/cmake/gen3_lite_controllerConfig-version.cmake /home/rover/ros_ws/devel/share/gen3_lite_controller/cmake/gen3_lite_controllerConfig-version.cmake
-/home/rover/ros_ws/devel/.private/gen3_lite_controller/share/gen3_lite_controller/cmake/gen3_lite_controller-msg-extras.cmake /home/rover/ros_ws/devel/share/gen3_lite_controller/cmake/gen3_lite_controller-msg-extras.cmake
