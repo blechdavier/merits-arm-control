@@ -4,3 +4,4 @@ build/*
 CATKIN_IGNORE
 .catkin_tools/*
 .venv/*
+.vscode/*

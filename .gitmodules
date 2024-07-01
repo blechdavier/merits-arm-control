@@ -9,10 +9,13 @@
 	url = https://github.com/ethz-asl/vgn
 [submodule "src/ros_kortex"]
 	path = src/ros_kortex
-	url = https://github.com/Kinovarobotics/ros_kortex
+	url = https://github.com/Kinovarobotics/ros_kortex/tree/noetic-devel
 [submodule "src/panda_moveit_config"]
 	path = src/panda_moveit_config
-	url = https://github.com/moveit/panda_moveit_config
+	url = https://github.com/moveit/panda_moveit_config/tree/noetic-devel
 [submodule "src/realsense-ros"]
 	path = src/realsense-ros
-	url = https://github.com/IntelRealSense/realsense-ros
+	url = https://github.com/IntelRealSense/realsense-ros/tree/ros1-legacy
+[submodule "src/ultralytics_ros"]
+	path = src/ultralytics_ros
+	url = https://github.com/Alpaca-zip/ultralytics_ros/tree/noetic-devel
