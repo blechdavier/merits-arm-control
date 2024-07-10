@@ -309,7 +309,7 @@ class TSDFServer(object):
         self.low_res_tsdf.integrate(img, self.aligned_cam_intrinsic, T_cam_task)
         self.high_res_tsdf.integrate(img, self.aligned_cam_intrinsic, T_cam_task)
 
-        # vis.draw_tsdf(self.low_res_tsdf.get_grid().squeeze(), self.low_res_tsdf.voxel_size)
+        vis.draw_tsdf(self.low_res_tsdf.get_grid().squeeze(), self.low_res_tsdf.voxel_size)
 
     def yolo_result_cb(self, msg: YoloResult):
         if not self.integrate:
@@ -351,9 +351,8 @@ class TSDFServer(object):
                 imgmsg = self.cv_bridge.cv2_to_imgmsg(masked_depth_image)
                 imgmsg.header = self.most_recent_depth.header
                 self.mouse_depth_mask_pub.publish(imgmsg)
-                grid = tsdf.get_grid().squeeze()
             
-        vis.draw_tsdf(self.tsdfs["mouse"].get_grid().squeeze(), self.tsdfs["mouse"].voxel_size)
+        # vis.draw_tsdf(self.tsdfs["mouse"].get_grid().squeeze(), self.tsdfs["mouse"].voxel_size)
 
 
 

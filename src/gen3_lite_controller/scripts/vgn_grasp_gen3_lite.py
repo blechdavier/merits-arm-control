@@ -284,9 +284,9 @@ class Gen3LiteGraspController(object):
 
 class TSDFServer(object):
     def __init__(self, plan_grasps):
-        self.cam_frame_id = rospy.get_param("/vgn_grasp_gen3_lite/cam/frame_id")
-        self.cam_topic_name = rospy.get_param("/vgn_grasp_gen3_lite/cam/topic_name")
-        self.intrinsic = CameraIntrinsic.from_dict(rospy.get_param("/vgn_grasp_gen3_lite/cam/intrinsic"))
+        self.cam_frame_id = rospy.get_param("/vgn_grasp_gen3_lite/depth_cam/frame_id")
+        self.cam_topic_name = rospy.get_param("/vgn_grasp_gen3_lite/depth_cam/topic_name")
+        self.intrinsic = CameraIntrinsic.from_dict(rospy.get_param("/vgn_grasp_gen3_lite/depth_cam/intrinsic"))
         self.size = 6.0 * rospy.get_param("/vgn_grasp_gen3_lite/finger_depth")
 
         self.cv_bridge = cv_bridge.CvBridge()

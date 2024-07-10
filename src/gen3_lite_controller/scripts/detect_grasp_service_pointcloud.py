@@ -74,7 +74,7 @@ class GraspDetector:
                 cluster_centers.append(cluster_center)
             return cluster_centers
         
-        cluster_centers = get_cluster_centers(red_points, 0.01) + get_cluster_centers(yellow_points, 0.01) + get_cluster_centers(green_points, 0.01) + get_cluster_centers(blue_points, 0.01)
+        cluster_centers = get_cluster_centers(red_points, 0.01) # + get_cluster_centers(yellow_points, 0.01) + get_cluster_centers(green_points, 0.01) + get_cluster_centers(blue_points, 0.01)
         
         for x, y, z in cluster_centers:
             pose = geometry_msgs.msg.Pose()
