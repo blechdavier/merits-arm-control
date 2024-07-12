@@ -14,9 +14,6 @@
         <arg name="arm" default="gen3_lite"/>
     </include>
 
-    <!-- Start a joint trajectory controller -->
-    <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="position_joint_trajectory_controller"/> -->
-
     <!-- Launch camera driver -->
     <include file="$(find realsense2_camera)/launch/rs_camera.launch">
         <arg name="enable_pointcloud" value="false" />

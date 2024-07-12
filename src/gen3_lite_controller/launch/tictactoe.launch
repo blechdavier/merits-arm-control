@@ -16,10 +16,7 @@
     </include>
 
     <node type="rviz" name="rviz" pkg="rviz" args="-d $(find gen3_lite_controller)/rviz/tictactoe.rviz __ns:=my_gen3_lite"/>
-
-    <!-- Start a joint trajectory controller -->
-    <!-- <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="position_joint_trajectory_controller"/> -->
-
+    
     <!-- Launch camera driver -->
     <include file="$(find realsense2_camera)/launch/rs_camera.launch">
         <arg name="enable_pointcloud" value="true" />

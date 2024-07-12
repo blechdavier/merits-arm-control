@@ -14,6 +14,7 @@ import geometry_msgs.msg
 import numpy as np
 import rospy
 import sensor_msgs.msg
+import roslib.packages
 
 from vgn import vis
 from vgn.experiments.clutter_removal import State
@@ -119,8 +120,8 @@ class Gen3LiteGraspController(object):
         # self.T_task_workspace_center = Transform(Rotation.identity(), [self.size, self.size, 0.0])
         # self.tf_tree.broadcast_static(self.T_task_workspace_center, "task", "workspace_center")
 
-
-        self.plan_grasps = VGN(Path("/home/rover/ros_ws/src/vgn/data/models/vgn_conv.pth"), rviz=True) #FIXME hard coded path
+        path = roslib.packages.get_pkg_dir("vgn")
+        self.plan_grasps = VGN(Path(path+"/data/models/vgn_conv.pth"), rviz=True)
         self.tsdf_server = TSDFServer(self.plan_grasps)
 
         rospy.loginfo("Ready to take action")

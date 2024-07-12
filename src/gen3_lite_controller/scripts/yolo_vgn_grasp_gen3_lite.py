@@ -4,7 +4,6 @@
 Open-loop grasp execution using a Kinova Gen3 Lite arm and wrist-mounted RealSense camera.
 """
 
-import argparse
 from pathlib import Path
 
 import cv2
@@ -16,6 +15,8 @@ import geometry_msgs.msg
 import numpy as np
 import rospy
 import sensor_msgs.msg
+
+import roslib.packages
 
 from vgn import vis
 from vgn.experiments.clutter_removal import State
@@ -125,7 +126,8 @@ class Gen3LiteGraspController(object):
         self.tf_tree = ros_utils.TransformTree()
         self.set_side("right")
 
-        self.plan_grasps = VGN(Path("/home/rover/ros_ws/src/vgn/data/models/vgn_conv.pth"), rviz=True) #FIXME hard coded path
+        path = roslib.packages.get_pkg_dir("vgn")
+        self.plan_grasps = VGN(Path(path+"/data/models/vgn_conv.pth"), rviz=True)
         # read objects from yaml
         self.objects = rospy.get_param("/vgn_grasp_gen3_lite/deposit_points")
         self.tsdf_server = TSDFServer(self.objects.keys()) # pass in the names
