@@ -10,36 +10,51 @@ Traditionally, robotic grasping enables automating simple, repetitive tasks. How
 
 ## Supported Systems
 
-AMD64 systems running Ubuntu 20.04. Supported NVIDIA GPU, at least 16gb memory and 256gb disk recommended.
+AMD64 systems running Ubuntu. Supported NVIDIA GPU, at least 16gb memory and 256gb disk recommended.
 
 ## Installation Instructions
 
-Install Ubuntu 20.04
+Install Ubuntu
 
-1. Download the Ubuntu 20.04 ISO from the [official website](https://releases.ubuntu.com/focal/). ([archive.org](https://archive.org/details/ubuntu-20.04.6-desktop-amd64)) and flash the image to a USB drive.
+1. Download an Ubuntu ISO from the [official website](https://releases.ubuntu.com/) and flash the image to a USB drive. I'm using 24.04 LTS as my host.
 2. Boot from the USB drive and follow the onscreen instructions.
    - **Be careful not to overwrite anyone else's partitions if installing on a lab computer.**
    - Select "Install third-party software for graphics and Wi-fi hardware and additional media formats" when installing.
 
+Make sure all packages are up to date
+
+```bash
+sudo apt update
+sudo apt upgrade -y
+```
+
+Launch Software Updater and allow it to restart your system.
 
 Install Docker ([instructions](https://docs.docker.com/engine/install/ubuntu/)) ([archive.org](https://web.archive.org/web/20240721033617/https://docs.docker.com/engine/install/ubuntu/))
 
-Install [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#setting-up-nvidia-container-toolkit) for CUDA support inside containers.
+Continue to [Linux Postinstall](https://docs.docker.com/engine/install/linux-postinstall/) and add yourself to the Docker group.
+
+Install [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#setting-up-nvidia-container-toolkit) for CUDA support inside containers.
+
+Restart Docker to enable Container Toolkit
+
+```bash
+systemctl restart docker
+```
+
+Download [Visual Studio Code](https://code.visualstudio.com/download) and the [Dev Containers Extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
 
 Install Git and clone this repository.
 
 ```bash
-sudo apt-get install git
+sudo apt-get install git -y
 git clone http://github.com/blechdavier/merits-arm-control
-cd merits-arm-control
 ```
-
-Download [Visual Studio Code](https://code.visualstudio.com/docs/setup/linux) and the [Dev Containers Extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
 
 Open the project.
 
 ```bash
-code .
+code merits-arm-control
 ```
 
 Reopen the project in a Dev Container.
@@ -47,18 +62,19 @@ Reopen the project in a Dev Container.
 1. Ctrl + Shift + P in VSCode to open the Command Palette
 2. Choose "Dev Containers: Reopen in Container".
 
-Wait for the container to start. The first launch should take around 15 minutes.
+Wait for the container to start. The first launch could take around 10 minutes depending on your internet connection.
 
 ```bash
 catkin build
-# You'll need to source this in every new terminal you create.
+# You'll need to source this in every new terminal you create
+# and every time you build the project.
 # You could add it to your .bashrc if that would work better for you.
 source devel/setup.bash
 ```
 
 ### Developing outside of a container
 
-If you don't want to use docker, you can follow the Dockerfile to set up your system with all the necessary packages and dependencies.
+If you don't want to use Docker, install Ubuntu 20.04 and follow the Dockerfile by hand on your system to set up all the necessary packages and dependencies.
 
 ## Demonstrations
 
