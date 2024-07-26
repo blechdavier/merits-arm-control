@@ -1,4 +1,4 @@
-# Introducing Perception to a Robotic Grasping System
+# Introducing Vision to a Robotic Grasping System
 
 ![Intel RealSense D435i camera wrist-mounted on a Kinova Gen3 Lite robotic arm](readme_images/cover_image.png)
 
@@ -6,7 +6,7 @@ Intel RealSense D435i [wrist-mounted](https://archive.org/details/arm-camera-mou
 
 ## Motivation
 
-Traditionally, robotic grasping enables automating simple, repetitive tasks. However, introducing perception can expand the versatility of a grasping system. The goal of this project is to demonstrate the capabilities of such a system interactively through a series of demonstrations.
+Traditionally, robotic grasping enables automating simple, repetitive tasks. However, introducing vision can expand the versatility of a grasping system. The goal of this project is to demonstrate the capabilities of such a system interactively through a series of demonstrations.
 
 ## Supported Systems
 
@@ -19,12 +19,12 @@ Install Ubuntu 20.04
 1. Download the Ubuntu 20.04 ISO from the [official website](https://releases.ubuntu.com/focal/). ([archive.org](https://archive.org/details/ubuntu-20.04.6-desktop-amd64)) and flash the image to a USB drive.
 2. Boot from the USB drive and follow the onscreen instructions.
    - **Be careful not to overwrite anyone else's partitions if installing on a lab computer.**
+   - Select "Install third-party software for graphics and Wi-fi hardware and additional media formats" when installing.
 
-Install ROS Noetic ([instructions](https://wiki.ros.org/noetic/Installation/Ubuntu)) ([archive.org](https://web.archive.org/web/20240120054445/https://wiki.ros.org/noetic/Installation/Ubuntu))
 
 Install Docker ([instructions](https://docs.docker.com/engine/install/ubuntu/)) ([archive.org](https://web.archive.org/web/20240721033617/https://docs.docker.com/engine/install/ubuntu/))
 
-Install [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#setting-up-nvidia-container-toolkit) for CUDA support inside containers. (Optional, only if developing inside container)
+Install [Nvidia Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#setting-up-nvidia-container-toolkit) for CUDA support inside containers.
 
 Install Git and clone this repository.
 
@@ -33,28 +33,6 @@ sudo apt-get install git
 git clone http://github.com/blechdavier/merits-arm-control
 cd merits-arm-control
 ```
-
-<!--
-Install dependencies with [Rosdep](https://wiki.ros.org/rosdep) ([archive.org](https://web.archive.org/web/20240721035635/https://wiki.ros.org/rosdep))
-
-```bash
-# You should have installed Rosdep with ROS, but in case you haven't:
-sudo rosdep init
-rosdep update
-
-# Install dependencies
-rosdep install --from-paths src --ignore-src -ry
-```
-
-Install [Pipenv](https://pipenv.pypa.io/en/latest/installation.html) to manage python dependencies. Install the dependencies and activate the virtual environment in your shell. Pipenv can save a lot of debugging by making dependencies deterministic using a lock file.
-
-```bash
-echo "export PATH=\"/home/$USER/.local/bin:$PATH\"" >> ~/.bashrc
-source ~/.bashrc
-pip install pipenv --user
-pipenv sync # Installs all packages specified in Pipfile.lock.
-pipenv shell # Spawns a shell within the virtualenv.
-``` -->
 
 Download [Visual Studio Code](https://code.visualstudio.com/docs/setup/linux) and the [Dev Containers Extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
 
@@ -77,6 +55,10 @@ catkin build
 # You could add it to your .bashrc if that would work better for you.
 source devel/setup.bash
 ```
+
+### Developing outside of a container
+
+If you don't want to use docker, you can follow the Dockerfile to set up your system with all the necessary packages and dependencies.
 
 ## Demonstrations
 
@@ -114,7 +96,7 @@ roslaunch gen3_lite_controller yolo_vgn.launch
 
 ### 4DOF grasping with polygon fitting
 
-The motivation behind this approach was to maximize grasp success rate by simplifying the problem. I chose to limit the problem to top-down grasps of [red cubes](https://www.melissaanddoug.com/products/100-piece-wood-blocks-set) ([archive.org](https://web.archive.org/web/20240227142819/https://www.melissaanddoug.com/products/100-piece-wood-blocks-set)).
+The motivation behind this approach was to maximize grasp success rate by simplifying the problem. I chose to limit the problem to top-down grasps of [red cubes](https://www.melissaanddoug.com/products/100-piece-wood-blocks-set).
 
 ![Detected block polygons and corresponding grasps](readme_images/polygon_fitting.png)
 
