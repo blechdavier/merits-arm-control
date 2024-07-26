@@ -2,4 +2,3 @@ function build() { echo \"Installing dependencies...\";rosdep install --from-pat
 
 rm -rf build devel logs
 rosdep install --from-paths /workspaces/ros_ws/src --ignore-src -ry
-pip install -r /workspaces/ros_ws/.devcontainer/requirements.txt & build

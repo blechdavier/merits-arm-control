@@ -29,9 +29,7 @@ RUN apt upgrade -y
 USER $USERNAME
 
 RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
-RUN echo "source /workspaces/ros_ws/devel/setup.bash" >> ~/.bashrc
 RUN echo "export PATH=\"/home/cvar/.local/bin:$PATH\"" >> ~/.bashrc
-RUN echo "function build() { echo \"Installing dependencies...\";rosdep install --from-paths /workspaces/ros_ws/src --ignore-src -ry;echo \"Calling catkin build...\";catkin build;echo \"Sourcing devel/setup.bash...\";source /workspaces/ros_ws/devel/setup.bash;echo \"Sourced.\"; }" >> ~/.bashrc
 RUN rosdep update
 
 RUN pip install conan==1.59
