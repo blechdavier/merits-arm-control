@@ -7,6 +7,8 @@ Open-loop grasp execution using a Kinova Gen3 Lite arm and wrist-mounted RealSen
 from pathlib import Path
 
 import cv2
+from scipy import ndimage
+import torch
 
 import cv_bridge
 import moveit_commander
@@ -20,8 +22,9 @@ import roslib.packages
 
 from vgn import vis
 from vgn.experiments.clutter_removal import State
-from vgn.detection import VGN
-from vgn.grasp import Grasp
+from vgn.detection import predict, process, select
+from vgn.grasp import Grasp, from_voxel_coordinates
+from vgn.networks import load_network
 from vgn.perception import *
 from vgn.utils import ros_utils
 from vgn.utils.transform import Rotation, Transform
@@ -32,10 +35,9 @@ names = {0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane', 5:
 
 class Gen3LiteCommander(object):
     def __init__(self):
-        rospy.loginfo("Initializing node in namespace " + rospy.get_namespace())
+        rospy.logerr("Initializing node in namespace " + rospy.get_namespace())
         self._initialize_moveit()
-        self._initialize_gripper()
-        rospy.loginfo("Successfully initialized Gen3LiteCommander")
+        rospy.logerr("Successfully initialized Gen3LiteCommander")
 
     def _initialize_moveit(self):
         self.robot = moveit_commander.robot.RobotCommander("robot_description")
@@ -53,11 +55,8 @@ class Gen3LiteCommander(object):
         self.arm_group.set_max_acceleration_scaling_factor(0.5)
         self.gripper_group = moveit_commander.move_group.MoveGroupCommander("gripper")
         self.display_trajectory_publisher = rospy.Publisher('/my_gen3_lite/move_group/display_planned_path',
-                                                    moveit_msgs.msg.DisplayTrajectory,
-                                                    queue_size=20)
-    
-    def _initialize_gripper(self):
-        pass
+                                            moveit_msgs.msg.DisplayTrajectory,
+                                            queue_size=20)
 
     def goto_joints(self, joints: "list[float]"):
         # TODO raise an exception if this fails
@@ -69,43 +68,111 @@ class Gen3LiteCommander(object):
         success = arm_group.execute(plan, wait=True)
         return success
     
-    def goto_pose(self, pose: geometry_msgs.msg.Transform):
-        # TODO raise an exception if this fails
-        pose_msg = ros_utils.to_pose_msg(pose)
+    def goto_pose(self, pose):
+        if not isinstance(pose, geometry_msgs.msg.Pose):
+            pose = ros_utils.to_pose_msg(pose)
         for i in range(5):
-            self.arm_group.set_pose_target(pose_msg)
+            self.arm_group.set_pose_target(pose)
             _, plan, _, _ = self.arm_group.plan()
             if self.arm_group.execute(plan, wait=True):
                 return
             else:
                 rospy.logwarn(f"Failed attempt {i+1}/5")
                 rospy.sleep(0.5)
-        rospy.logerr("Failed to reach pose")
+        raise Exception("Failed to reach target pose")
 
 
 
     def move_gripper(self, relative_position: float):
         if relative_position < 0 or relative_position > 1:
             raise ValueError("Relative position must be between 0 and 1")
-        gripper_joint = self.robot.get_joint("right_finger_bottom_joint") # no clue why it's called this
+        gripper_joint = self.robot.get_joint("right_finger_bottom_joint")
         gripper_max_absolute_pos = gripper_joint.max_bound()
         gripper_min_absolute_pos = gripper_joint.min_bound()
-        rospy.logerr("Gripper max bound: " + str(gripper_max_absolute_pos))
-        rospy.logerr("Gripper min bound: " + str(gripper_min_absolute_pos))
         position = relative_position * (gripper_max_absolute_pos - gripper_min_absolute_pos) + gripper_min_absolute_pos
-        rospy.logerr("Gripper position: " + str(position))
+        rospy.logerr(f"Relative Target Position: {str(relative_position)}")
+        rospy.logerr(f"Current raw position: {gripper_joint.value()}")
         try:
             val = gripper_joint.move(position, True)
+            rospy.logerr(f"Gripper move result: {self.get_gripper_position()}")
             return val
         except Exception as e:
             rospy.logerr("An error occurred while moving the gripper: " + str(e))
             return False 
         
+    def get_gripper_position(self) -> float:
+        """0-1, where 1 is fully open and 0 is fully closed."""
+        gripper_joint = self.robot.get_joint("right_finger_bottom_joint")
+        min_bound = gripper_joint.min_bound()
+        max_bound = gripper_joint.max_bound()
+        return (gripper_joint.value() - min_bound) / (max_bound - min_bound)
+        
     def open_gripper(self):
-        return self.move_gripper(0.9)
+        while self.get_gripper_position() < 0.59:
+            self.move_gripper(0.6)
     
     def close_gripper(self):
-        return self.move_gripper(0)
+        self.move_gripper(0.01)
+
+class YoloVGN(object):
+    def __init__(self, model_path, rviz=False):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.net = load_network(model_path, self.device)
+        self.rviz = rviz
+
+    def __call__(self, state, occupancy_grids: "dict[str, TSDFVolume]") -> "dict[str, tuple[np.ndarray, np.ndarray]]":
+        """returns a dictionary of grasps and scores for each classification"""
+        output = {}
+        tsdf_vol = state.tsdf.get_grid()
+        voxel_size = state.tsdf.voxel_size
+
+        tic = time.time()
+        qual_vol, rot_vol, width_vol = predict(tsdf_vol, self.net, self.device)
+        qual_vol, rot_vol, width_vol = process(tsdf_vol, qual_vol, rot_vol, width_vol)
+        for (classification, tsdf) in occupancy_grids.items():
+            occupancy_grid = tsdf.get_grid().squeeze()
+            # print just a slice of the occupancy grid
+            for k in range(occupancy_grid.shape[2]):
+                rospy.logerr("-"*50)
+                rospy.logerr(f"Occupancy grid for {classification} slice {k}")
+                for i in range(occupancy_grid.shape[0]):
+                    line = ""
+                    for j in range(occupancy_grid.shape[1]):
+                        occupance = occupancy_grid[i, j, k] > 0.5
+                        quality = qual_vol[i, j, k] > 0.9
+                        if quality and occupance:
+                            line += "X"
+                        elif quality:
+                            line += "Q"
+                        elif occupance:
+                            line += "O"
+                        else:
+                            line += "."
+                    rospy.logerr(line)
+                min_val = occupancy_grid.min()
+                max_val = occupancy_grid.max()
+                rospy.logerr(f"Occupancy grid for {classification} min: {min_val}, max: {max_val}")
+            # multiply elementwise to remove grasps that are not the object
+            grasps, scores = select(qual_vol.copy() * occupancy_grid, rot_vol, width_vol, threshold=0.8)
+            if len(grasps) > 0:
+                p = np.random.permutation(len(grasps))
+                grasps = [from_voxel_coordinates(g, voxel_size) for g in np.array(grasps)[p]] # transform to world coordinates
+                scores = np.array(scores)[p]
+            output[classification] = (grasps, scores)
+        toc = time.time() - tic
+
+        grasps, scores = np.asarray(grasps), np.asarray(scores)
+
+        if len(grasps) > 0:
+            p = np.random.permutation(len(grasps))
+            grasps = [from_voxel_coordinates(g, voxel_size) for g in grasps[p]]
+            scores = scores[p]
+
+        if self.rviz:
+            vis.draw_quality(qual_vol, state.tsdf.voxel_size, threshold=0.01)
+
+        return output, toc
+
 
 class Gen3LiteGraspController(object):
     def __init__(self):
@@ -127,7 +194,7 @@ class Gen3LiteGraspController(object):
         self.set_side("right")
 
         path = roslib.packages.get_pkg_dir("vgn")
-        self.plan_grasps = VGN(Path(path+"/data/models/vgn_conv.pth"), rviz=True)
+        self.plan_grasps = YoloVGN(Path(path+"/data/models/vgn_conv.pth"), rviz=True)
         # read objects from yaml
         self.objects = rospy.get_param("/vgn_grasp_gen3_lite/deposit_points")
         self.tsdf_server = TSDFServer(self.objects.keys()) # pass in the names
@@ -157,17 +224,20 @@ class Gen3LiteGraspController(object):
         rospy.loginfo("Reconstructed scene")
 
         state = State(tsdf, pc)
-        grasps, scores, planning_time = self.plan_grasps(state)
-        vis.draw_grasps(grasps, scores, self.finger_depth)
-        rospy.loginfo("Planned grasps")
+        grasp_dict, planning_time = self.plan_grasps(state, self.tsdf_server.tsdfs)
+        rospy.loginfo(f"Planning time: {planning_time:.2f}s")
 
-        if len(grasps) == 0:
-            rospy.loginfo("No grasps detected")
+        if grasp_dict:
+            for name, (grasps, scores) in grasp_dict.items():
+                vis.draw_grasps(grasps, scores, self.finger_depth)
+                rospy.logerr(f"Detected {len(grasps)} grasps on item {name}")
+        else:
+            rospy.logwarn("No grasps detected")
             return
 
-        grasp, score, name = self.select_grasp(grasps, scores)
+        grasp, score, name = Gen3LiteGraspController.select_grasp(grasp_dict)
         vis.draw_grasp(grasp, score, self.finger_depth)
-        rospy.loginfo("Selected grasp")
+        rospy.loginfo(f"Selected grasp on item {name} with quality {(score*100):.2f}%")
 
         self.execute_grasp(grasp)
 
@@ -198,38 +268,27 @@ class Gen3LiteGraspController(object):
 
         return tsdf, pc
 
-    def select_grasp(self, grasps, scores) -> str:
-        tsdfs = self.tsdf_server.tsdfs
-        grids = [(classification, tsdf.get_grid().squeeze()) for classification, tsdf in tsdfs.items()]
-
-        # select the highest grasp with a classification TODO this is too much nesting
-        max_height = 0
-        selected_grasp, selected_score, selected_name = None, None, None
-        for grasp in grasps:
-            height = grasp.pose.translation[2]
-            if height > max_height:
-                name = None
-                max_score = 0
-                for classification, grid in grids:
-                    # sample the tsdf at the grasp pose
-                    amount_down_finger = 0.75 # world's most poorly named variable: 0.0 is the palm, 1.0 is the fingertip
-                    fingertip_pose = grasp.pose * Transform(Rotation.identity(), [0.0, 0.0, self.finger_depth * amount_down_finger])
-                    x, y, z = fingertip_pose.translation / tsdfs[classification].voxel_size
-                    x, y, z = int(x), int(y), int(z)
-                    if grid[x, y, z] > max_score:
-                        max_score = grid[x, y, z]
-                        name = classification
-                if name is not None:
-                    max_height = height
+    def select_grasp(grasp_dict):
+        # select the grasp with the highest score
+        selected_grasp, selected_score, selected_name = None, 0, None
+        for classification, (grasps, scores) in grasp_dict.items():
+            for grasp, score in zip(grasps, scores):
+                if score > selected_score:
                     selected_grasp = grasp
-                    selected_score = max_score
-                    selected_name = name
+                    selected_score = score
+                    selected_name = classification
 
         # make sure camera is pointing forward
-        rot = grasp.pose.rotation
-        axis = rot.as_matrix()[:, 0]
-        if axis[0] < 0:
-            grasp.pose.rotation = rot * Rotation.from_euler("z", np.pi)
+        if selected_grasp:
+            rot = selected_grasp.pose.rotation
+            rospy.logerr("-"*50)
+            rospy.logerr(f"GRASP POSE: {grasp.pose.translation}")
+            rospy.logerr("-"*50)
+            axis = rot.as_matrix()[:, 0]
+            if axis[0] < 0:
+                selected_grasp.pose.rotation = rot * Rotation.from_euler("z", np.pi)
+        else:
+            rospy.logerr("No grasps of sufficient quality were detected.")
 
         return selected_grasp, selected_score, selected_name 
 
@@ -238,7 +297,7 @@ class Gen3LiteGraspController(object):
         T_base_grasp = self.T_base_task * T_task_grasp
 
 
-        T_grasp_pregrasp = Transform(Rotation.identity(), [0.0, 0.0, -0.05])
+        T_grasp_pregrasp = Transform(Rotation.identity(), [0.0, 0.0, -0.15])
         T_grasp_retreat = Transform(Rotation.identity(), [0.0, 0.0, -0.05])
         T_base_pregrasp = T_base_grasp * T_grasp_pregrasp
         T_base_retreat = T_base_grasp * T_grasp_retreat
