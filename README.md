@@ -16,7 +16,7 @@ AMD64 systems running Ubuntu. Supported NVIDIA GPU, at least 16gb memory and 256
 
 Install Ubuntu
 
-1. Download an Ubuntu ISO from the [official website](https://releases.ubuntu.com/) and flash the image to a USB drive. I'm using 24.04 LTS as my host.
+1. Download an Ubuntu 20.04 ISO from the [official website](https://releases.ubuntu.com/) and flash the image to a USB drive.
 2. Boot from the USB drive and follow the onscreen instructions.
    - **Be careful not to overwrite anyone else's partitions if installing on a lab computer.**
    - Select "Install third-party software for graphics and Wi-fi hardware and additional media formats" when installing.
@@ -40,6 +40,24 @@ Restart Docker to enable Container Toolkit
 
 ```bash
 systemctl restart docker
+```
+
+Install RealSense packages on host
+
+```bash
+sudo apt install curl -y
+sudo mkdir -p /etc/apt/keyrings
+curl -sSf https://librealsense.intel.com/Debian/librealsense.pgp | sudo tee /etc/apt/keyrings/librealsense.pgp > /dev/null
+echo "deb [signed-by=/etc/apt/keyrings/librealsense.pgp] https://librealsense.intel.com/Debian/apt-repo `lsb_release -cs` main" | \
+sudo tee /etc/apt/sources.list.d/librealsense.list
+sudo apt-get update
+sudo apt-get install librealsense2-dkms librealsense2-utils librealsense2-dev librealsense2-dbg -y
+```
+
+Test RealSense installation
+
+```bash
+realsense-viewer
 ```
 
 Download [Visual Studio Code](https://code.visualstudio.com/download) and the [Dev Containers Extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).

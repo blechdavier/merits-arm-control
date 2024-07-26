@@ -21,7 +21,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
 # ********************************************************
 # * Anything else you want to do like clean up goes here *
 # ********************************************************
-RUN apt install python3-catkin-tools python3-osrf-pycommon python3-pip git -y
+RUN apt install python3-catkin-tools python3-osrf-pycommon python3-pip git ros-noetic-realsense2-camera ros-noetic-realsense2-description -y
 RUN apt update
 RUN apt upgrade -y
 
@@ -33,6 +33,7 @@ RUN echo "export PATH=\"/home/cvar/.local/bin:$PATH\"" >> ~/.bashrc
 RUN rosdep update
 
 RUN pip install conan==1.59
+RUN pip install pipenv --user
 RUN export PATH="/home/cvar/.local/bin:$PATH"
 RUN /home/cvar/.local/bin/conan profile new default --detect > /dev/null
 RUN /home/cvar/.local/bin/conan profile update settings.compiler.libcxx=libstdc++11 default
