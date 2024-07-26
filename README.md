@@ -47,8 +47,8 @@ Download [Visual Studio Code](https://code.visualstudio.com/download) and the [D
 Install Git and clone this repository.
 
 ```bash
-sudo apt-get install git -y
-git clone http://github.com/blechdavier/merits-arm-control
+sudo apt-get install git git-lfs -y
+git clone http://github.com/blechdavier/merits-arm-control --recurse-submodules
 ```
 
 Open the project.
@@ -65,10 +65,11 @@ Reopen the project in a Dev Container.
 Wait for the container to start. The first launch could take around 10 minutes depending on your internet connection.
 
 ```bash
+# install Python deps
+pip install pipenv --user
+pipenv install
+# build ROS project
 catkin build
-# You'll need to source this in every new terminal you create
-# and every time you build the project.
-# You could add it to your .bashrc if that would work better for you.
 source devel/setup.bash
 ```
 
