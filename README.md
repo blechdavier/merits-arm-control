@@ -1,6 +1,6 @@
 # Introducing Perception to a Robotic Grasping System
 
-![Intel RealSense D435i camera wrist-mounted on a Kinova Gen3 Lite robotic arm](IMG_1778.png)
+![Intel RealSense D435i camera wrist-mounted on a Kinova Gen3 Lite robotic arm](readme_images/cover_image.png)
 
 Intel RealSense D435i [wrist-mounted](https://archive.org/details/arm-camera-mount) on a Kinova Gen3 Lite.
 
@@ -84,6 +84,8 @@ source devel/setup.bash
 
 This approach is the simplest by far. I take a point cloud from the RealSense camera and filter the points by color. Then, I generate clusters of points and find the center: the mean position of the points in each cluster. This position is where the arm will then execute a grasp.
 
+![A detected grasp overlaid on a point cloud](readme_images/point_clustering.png)
+
 ```bash
 roslaunch gen3_lite_controller point_clustering.launch
 ```
@@ -114,7 +116,7 @@ roslaunch gen3_lite_controller yolo_vgn.launch
 
 The motivation behind this approach was to maximize grasp success rate by simplifying the problem. I chose to limit the problem to top-down grasps of [red cubes](https://www.melissaanddoug.com/products/100-piece-wood-blocks-set) ([archive.org](https://web.archive.org/web/20240227142819/https://www.melissaanddoug.com/products/100-piece-wood-blocks-set)).
 
-<img src=image.png alt="Detected block contours" width=240px>
+![Detected block polygons and corresponding grasps](readme_images/polygon_fitting.png)
 
 A top-down image is taken and then masked by hue. Then, a value threshold is applied to isolate the top (brightest) face of the cubes.
 
