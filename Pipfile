@@ -1,0 +1,29 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+onnx = "==1.14.0"
+urllib3 = "==1.26.18"
+numpy = "==1.23.0"
+opencv-python = "==4.7.0.72"
+ultralytics = "*"
+catkin-pkg = "*"
+black = "*"
+jupyterlab = "*"
+scipy = "*"
+pandas = "*"
+matplotlib = "*"
+mpi4py = "*"
+open3d = "*"
+pybullet = "==2.7.9"
+torch = "*"
+pytorch-ignite = "*"
+tensorboard = "*"
+tqdm = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
